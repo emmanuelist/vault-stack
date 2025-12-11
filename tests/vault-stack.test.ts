@@ -742,3 +742,100 @@ describe("vault-stack contract", () => {
                                     expect(result).toBeErr(Cl.uint(100)); // err-owner-only
                                   });
                                 });
+
+                                describe("Contract Balance", () => {
+                                    it("returns correct contract balance with vaults and funding", () => {
+                                      const vaultAmount = 1000000;
+                                      const fundAmount = 500000;
+                                
+                                      simnet.callPublicFn(
+                                        "vault-stack",
+                                        "create-vault",
+                                        [Cl.uint(vaultAmount), Cl.uint(MIN_LOCK_DURATION)],
+                                        address1
+                                      );
+                                
+                                      simnet.callPublicFn(
+                                        "vault-stack",
+                                        "fund-contract",
+                                        [Cl.uint(fundAmount)],
+                                        deployer
+                                      );
+                                
+                                      const { result } = simnet.callReadOnlyFn(
+                                        "vault-stack",
+                                        "get-contract-balance",
+                                        [],
+                                        deployer
+                                      );
+                                
+                                      expect(result).toBeOk(Cl.uint(vaultAmount + fundAmount));
+                                    });
+                                  });
+                                
+                                  describe("Integration Tests", () => {
+                                    it("handles complete vault lifecycle with interest payment", () => {
+                                      const amount = 10000000; // 10 STX
+                                      const lockDuration = SECONDS_PER_YEAR; // 1 year
+                                      const expectedInterest = Math.floor(
+                                        (amount * ANNUAL_INTEREST_RATE * lockDuration) / (10000 * SECONDS_PER_YEAR)
+                                      );
+                                
+                                      // Fund contract with enough for interest
+                                      simnet.callPublicFn(
+                                        "vault-stack",
+                                        "fund-contract",
+                                        [Cl.uint(expectedInterest)],
+                                        deployer
+                                      );
+                                
+                                      // Create vault
+                                      const createResult = simnet.callPublicFn(
+                                        "vault-stack",
+                                        "create-vault",
+                                        [Cl.uint(amount), Cl.uint(lockDuration)],
+                                        address1
+                                      );
+                                      expect(createResult.result).toBeOk(Cl.uint(1));
+                                
+                                      // Check vault is locked
+                                      const statusBefore = simnet.callReadOnlyFn(
+                                        "vault-stack",
+                                        "get-vault-status",
+                                        [Cl.uint(1)],
+                                        address1
+                                      );
+                                      const statusBeforeTuple = statusBefore.result.expectOk().expectTuple();
+                                      expect(statusBeforeTuple["is-unlocked"]).toBeBool(false);
+                                
+                                      // Advance time
+                                      simnet.mineEmptyBlocks(lockDuration);
+                                
+                                      // Check vault is unlocked
+                                      const statusAfter = simnet.callReadOnlyFn(
+                                        "vault-stack",
+                                        "get-vault-status",
+                                        [Cl.uint(1)],
+                                        address1
+                                      );
+                                      const statusAfterTuple = statusAfter.result.expectOk().expectTuple();
+                                      expect(statusAfterTuple["is-unlocked"]).toBeBool(true);
+                                
+                                      // Withdraw with interest
+                                      const withdrawResult = simnet.callPublicFn(
+                                        "vault-stack",
+                                        "withdraw-from-vault",
+                                        [Cl.uint(1)],
+                                        address1
+                                      );
+                                      expect(withdrawResult.result).toBeOk(Cl.uint(amount + expectedInterest));
+                                    });
+                                
+                                    it("handles multiple users with multiple vaults", () => {
+                                      // User 1 creates 2 vaults
+                                      simnet.callPublicFn(
+                                        "vault-stack",
+                                        "create-vault",
+                                        [Cl.uint(1000000), Cl.uint(MIN_LOCK_DURATION)],
+                                        address1
+                                      );
