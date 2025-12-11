@@ -393,3 +393,105 @@ describe("vault-stack contract", () => {
                     expect(events).toHaveLength(1);
                     expect(events[0].event).toBe("stx_transfer_event");
                   });
+
+                  it("marks vault as withdrawn after successful withdrawal", () => {
+                        const amount = 1000000;
+                        const lockDuration = MIN_LOCK_DURATION;
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "create-vault",
+                          [Cl.uint(amount), Cl.uint(lockDuration)],
+                          address1
+                        );
+                  
+                        simnet.mineEmptyBlocks(lockDuration);
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "withdraw-from-vault",
+                          [Cl.uint(1)],
+                          address1
+                        );
+                  
+                        const { result } = simnet.callReadOnlyFn(
+                          "vault-stack",
+                          "get-vault",
+                          [Cl.uint(1)],
+                          address1
+                        );
+                  
+                        const vault = result.expectSome().expectTuple();
+                        expect(vault.withdrawn).toBeBool(true);
+                      });
+                  
+                      it("updates total deposits after withdrawal", () => {
+                        const amount = 1000000;
+                        const lockDuration = MIN_LOCK_DURATION;
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "create-vault",
+                          [Cl.uint(amount), Cl.uint(lockDuration)],
+                          address1
+                        );
+                  
+                        simnet.mineEmptyBlocks(lockDuration);
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "withdraw-from-vault",
+                          [Cl.uint(1)],
+                          address1
+                        );
+                  
+                        const { result } = simnet.callReadOnlyFn(
+                          "vault-stack",
+                          "get-total-deposits",
+                          [],
+                          address1
+                        );
+                  
+                        expect(result).toBeOk(Cl.uint(0));
+                      });
+                  
+                      it("fails to withdraw before unlock time", () => {
+                        const amount = 1000000;
+                        const lockDuration = MIN_LOCK_DURATION;
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "create-vault",
+                          [Cl.uint(amount), Cl.uint(lockDuration)],
+                          address1
+                        );
+                  
+                        const { result } = simnet.callPublicFn(
+                          "vault-stack",
+                          "withdraw-from-vault",
+                          [Cl.uint(1)],
+                          address1
+                        );
+                  
+                        expect(result).toBeErr(Cl.uint(102)); // err-vault-locked
+                      });
+                  
+                      it("fails if non-owner tries to withdraw", () => {
+                        const amount = 1000000;
+                        const lockDuration = MIN_LOCK_DURATION;
+                  
+                        simnet.callPublicFn(
+                          "vault-stack",
+                          "create-vault",
+                          [Cl.uint(amount), Cl.uint(lockDuration)],
+                          address1
+                        );
+                  
+                        simnet.mineEmptyBlocks(lockDuration);
+                  
+                        const { result } = simnet.callPublicFn(
+                          "vault-stack",
+                          "withdraw-from-vault",
+                          [Cl.uint(1)],
+                          address2 // Different user
+                        );
