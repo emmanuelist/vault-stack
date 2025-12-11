@@ -297,3 +297,99 @@ describe("vault-stack contract", () => {
                 [Cl.uint(1)],
                 address1
               );
+
+              expect(result).toBeOk(
+                      Cl.tuple({
+                        "vault-id": Cl.uint(1),
+                        owner: Cl.principal(address1),
+                        amount: Cl.uint(amount),
+                        "deposit-time": Cl.uint(currentHeight),
+                        "unlock-time": Cl.uint(currentHeight + lockDuration),
+                        "current-time": Cl.uint(currentHeight),
+                        "is-unlocked": Cl.bool(false),
+                        "time-remaining": Cl.uint(lockDuration),
+                        "interest-earned": Cl.uint(
+                          Math.floor((amount * ANNUAL_INTEREST_RATE * lockDuration) / (10000 * SECONDS_PER_YEAR))
+                        ),
+                        withdrawn: Cl.bool(false),
+                      })
+                    );
+                  });
+              
+                  it("returns correct vault status for unlocked vault", () => {
+                    const amount = 1000000;
+                    const lockDuration = MIN_LOCK_DURATION;
+              
+                    simnet.callPublicFn(
+                      "vault-stack",
+                      "create-vault",
+                      [Cl.uint(amount), Cl.uint(lockDuration)],
+                      address1
+                    );
+              
+                    // Advance time past unlock time
+                    simnet.mineEmptyBlocks(lockDuration);
+              
+                    const { result } = simnet.callReadOnlyFn(
+                      "vault-stack",
+                      "get-vault-status",
+                      [Cl.uint(1)],
+                      address1
+                    );
+              
+                    const status = result.expectOk().expectTuple();
+                    expect(status["is-unlocked"]).toBeBool(true);
+                    expect(status["time-remaining"]).toBeUint(0);
+                  });
+              
+                  it("fails for non-existent vault", () => {
+                    const { result } = simnet.callReadOnlyFn(
+                      "vault-stack",
+                      "get-vault-status",
+                      [Cl.uint(999)],
+                      address1
+                    );
+              
+                    expect(result).toBeErr(Cl.uint(103)); // err-vault-not-found
+                  });
+                });
+              
+                describe("Withdraw from Vault", () => {
+                  it("successfully withdraws after unlock time", () => {
+                    const amount = 1000000;
+                    const lockDuration = MIN_LOCK_DURATION;
+                    const expectedInterest = Math.floor(
+                      (amount * ANNUAL_INTEREST_RATE * lockDuration) / (10000 * SECONDS_PER_YEAR)
+                    );
+              
+                    // Fund contract first
+                    simnet.callPublicFn(
+                      "vault-stack",
+                      "fund-contract",
+                      [Cl.uint(expectedInterest)],
+                      deployer
+                    );
+              
+                    simnet.callPublicFn(
+                      "vault-stack",
+                      "create-vault",
+                      [Cl.uint(amount), Cl.uint(lockDuration)],
+                      address1
+                    );
+              
+                    // Advance time past unlock time
+                    simnet.mineEmptyBlocks(lockDuration);
+              
+                    const { result, events } = simnet.callPublicFn(
+                      "vault-stack",
+                      "withdraw-from-vault",
+                      [Cl.uint(1)],
+                      address1
+                    );
+              
+                    expect(result).toBeOk(Cl.uint(amount + expectedInterest));
+              
+                    // Check STX transfer event
+                    expect(events).toHaveLength(1);
+                    expect(events[0].event).toBe("stx_transfer_event");
+                  });
