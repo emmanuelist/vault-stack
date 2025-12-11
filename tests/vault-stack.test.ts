@@ -640,3 +640,105 @@ describe("vault-stack contract", () => {
                                 [Cl.uint(1)],
                                 address1
                               );
+
+                              expect(result).toBeOk(Cl.uint(amount));
+                                  });
+                              
+                                  it("fails if non-owner tries emergency withdraw", () => {
+                                    const amount = 1000000;
+                                    const lockDuration = MIN_LOCK_DURATION;
+                              
+                                    simnet.callPublicFn(
+                                      "vault-stack",
+                                      "create-vault",
+                                      [Cl.uint(amount), Cl.uint(lockDuration)],
+                                      address1
+                                    );
+                              
+                                    const { result } = simnet.callPublicFn(
+                                      "vault-stack",
+                                      "emergency-withdraw",
+                                      [Cl.uint(1)],
+                                      address2 // Different user
+                                    );
+                              
+                                    expect(result).toBeErr(Cl.uint(100)); // err-owner-only
+                                  });
+                              
+                                  it("fails if vault already withdrawn", () => {
+                                    const amount = 1000000;
+                                    const lockDuration = MIN_LOCK_DURATION;
+                              
+                                    simnet.callPublicFn(
+                                      "vault-stack",
+                                      "create-vault",
+                                      [Cl.uint(amount), Cl.uint(lockDuration)],
+                                      address1
+                                    );
+                              
+                                    simnet.callPublicFn(
+                                      "vault-stack",
+                                      "emergency-withdraw",
+                                      [Cl.uint(1)],
+                                      address1
+                                    );
+                              
+                                    // Try to emergency withdraw again
+                                    const { result } = simnet.callPublicFn(
+                                      "vault-stack",
+                                      "emergency-withdraw",
+                                      [Cl.uint(1)],
+                                      address1
+                                    );
+                              
+                                    expect(result).toBeErr(Cl.uint(106)); // err-already-withdrawn
+                                  });
+                                });
+                              
+                                describe("Fund Contract", () => {
+                                  it("allows contract owner to fund the contract", () => {
+                                    const fundAmount = 5000000;
+                              
+                                    const { result, events } = simnet.callPublicFn(
+                                      "vault-stack",
+                                      "fund-contract",
+                                      [Cl.uint(fundAmount)],
+                                      deployer
+                                    );
+                              
+                                    expect(result).toBeOk(Cl.bool(true));
+                                    expect(events).toHaveLength(1);
+                                    expect(events[0].event).toBe("stx_transfer_event");
+                                  });
+                              
+                                  it("increases contract balance after funding", () => {
+                                    const fundAmount = 5000000;
+                              
+                                    simnet.callPublicFn(
+                                      "vault-stack",
+                                      "fund-contract",
+                                      [Cl.uint(fundAmount)],
+                                      deployer
+                                    );
+                              
+                                    const { result } = simnet.callReadOnlyFn(
+                                      "vault-stack",
+                                      "get-contract-balance",
+                                      [],
+                                      deployer
+                                    );
+                              
+                                    expect(result).toBeOk(Cl.uint(fundAmount));
+                                  });
+                              
+                                  it("fails if non-owner tries to fund contract", () => {
+                                    const { result } = simnet.callPublicFn(
+                                      "vault-stack",
+                                      "fund-contract",
+                                      [Cl.uint(1000000)],
+                                      address1 // Not the owner
+                                    );
+                              
+                                    expect(result).toBeErr(Cl.uint(100)); // err-owner-only
+                                  });
+                                });
