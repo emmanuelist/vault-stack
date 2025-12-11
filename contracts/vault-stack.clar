@@ -34,3 +34,43 @@
     withdrawn: bool
   }
 )
+
+(define-map user-vault-ids
+  { user: principal }
+  { vault-ids: (list 50 uint) }
+)
+
+;; Read-only functions
+
+(define-read-only (get-vault (vault-id uint))
+  (map-get? vaults { vault-id: vault-id })
+)
+
+(define-read-only (get-user-vaults (user principal))
+  (default-to 
+    { vault-ids: (list) }
+    (map-get? user-vault-ids { user: user })
+  )
+)
+
+(define-read-only (get-total-deposits)
+  (ok (var-get total-deposits))
+)
+
+(define-read-only (get-vault-counter)
+  (ok (var-get vault-counter))
+)
+
+(define-read-only (calculate-interest (amount uint) (duration uint))
+  (let
+    (
+      ;; Convert duration from seconds to years (simplified: 365 days)
+      (seconds-per-year u31536000)
+      ;; Calculate interest: (amount * rate * duration) / (10000 * seconds_per_year)
+      ;; We use 10000 as denominator because rate is in basis points
+      (interest (/ (* (* amount annual-interest-rate) duration) 
+                   (* u10000 seconds-per-year)))
+    )
+    (ok interest)
+  )
+)
