@@ -199,3 +199,101 @@ describe("vault-stack contract", () => {
     
           expect(result).toBeTuple({ "vault-ids": Cl.list([Cl.uint(1)]) });
         });
+
+        it("allows multiple vaults per user", () => {
+              simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(1000000), Cl.uint(MIN_LOCK_DURATION)],
+                address1
+              );
+        
+              simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(2000000), Cl.uint(MIN_LOCK_DURATION * 2)],
+                address1
+              );
+        
+              const { result } = simnet.callReadOnlyFn(
+                "vault-stack",
+                "get-user-vaults",
+                [Cl.principal(address1)],
+                address1
+              );
+        
+              expect(result).toBeTuple({
+                "vault-ids": Cl.list([Cl.uint(1), Cl.uint(2)]),
+              });
+            });
+        
+            it("updates total deposits correctly", () => {
+              const amount1 = 1000000;
+              const amount2 = 2000000;
+        
+              simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(amount1), Cl.uint(MIN_LOCK_DURATION)],
+                address1
+              );
+        
+              simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(amount2), Cl.uint(MIN_LOCK_DURATION)],
+                address2
+              );
+        
+              const { result } = simnet.callReadOnlyFn(
+                "vault-stack",
+                "get-total-deposits",
+                [],
+                address1
+              );
+        
+              expect(result).toBeOk(Cl.uint(amount1 + amount2));
+            });
+        
+            it("fails with invalid amount (zero)", () => {
+              const { result } = simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(0), Cl.uint(MIN_LOCK_DURATION)],
+                address1
+              );
+        
+              expect(result).toBeErr(Cl.uint(105)); // err-invalid-amount
+            });
+        
+            it("fails with lock duration too short", () => {
+              const { result } = simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(1000000), Cl.uint(MIN_LOCK_DURATION - 1)],
+                address1
+              );
+        
+              expect(result).toBeErr(Cl.uint(104)); // err-invalid-duration
+            });
+          });
+        
+          describe("Vault Status", () => {
+            it("returns correct vault status for locked vault", () => {
+              const amount = 1000000;
+              const lockDuration = MIN_LOCK_DURATION;
+              const currentHeight = simnet.blockHeight;
+        
+              simnet.callPublicFn(
+                "vault-stack",
+                "create-vault",
+                [Cl.uint(amount), Cl.uint(lockDuration)],
+                address1
+              );
+        
+              const { result } = simnet.callReadOnlyFn(
+                "vault-stack",
+                "get-vault-status",
+                [Cl.uint(1)],
+                address1
+              );
