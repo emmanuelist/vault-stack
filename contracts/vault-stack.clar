@@ -158,3 +158,38 @@
     (ok vault-id)
   )
 )
+
+(define-public (withdraw-from-vault (vault-id uint))
+  (let
+    (
+      (vault (unwrap! (get-vault vault-id) err-vault-not-found))
+      (current-time stacks-block-height)
+    )
+    ;; Validations
+    (asserts! (is-eq tx-sender (get owner vault)) err-owner-only)
+    (asserts! (not (get withdrawn vault)) err-already-withdrawn)
+    (asserts! (>= current-time (get unlock-time vault)) err-vault-locked)
+    
+    ;; Calculate total withdrawal (principal + interest)
+    (let
+      (
+        (principal-amount (get amount vault))
+        (interest-amount (get interest-earned vault))
+        (total-amount (+ principal-amount interest-amount))
+      )
+      ;; Transfer STX back to user (using as-contract to send from contract)
+      (try! (as-contract (stx-transfer? total-amount tx-sender (get owner vault))))
+      
+      ;; Mark vault as withdrawn
+      (map-set vaults
+        { vault-id: vault-id }
+        (merge vault { withdrawn: true })
+      )
+      
+      ;; Update total deposits
+      (var-set total-deposits (- (var-get total-deposits) principal-amount))
+      
+      (ok total-amount)
+    )
+  )
+)
