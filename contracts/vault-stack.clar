@@ -119,3 +119,42 @@
     )
   )
 )
+
+;; Public functions
+
+(define-public (create-vault (amount uint) (lock-duration uint))
+  (let
+    (
+      (vault-id (+ (var-get vault-counter) u1))
+      (deposit-time stacks-block-height)
+      (unlock-time (+ stacks-block-height lock-duration))
+      (interest (unwrap! (calculate-interest amount lock-duration) err-invalid-amount))
+    )
+    ;; Validations
+    (asserts! (> amount u0) err-invalid-amount)
+    (asserts! (>= lock-duration min-lock-duration) err-invalid-duration)
+    
+    ;; Transfer STX from user to contract
+    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    
+    ;; Create vault record
+    (map-set vaults
+      { vault-id: vault-id }
+      {
+        owner: tx-sender,
+        amount: amount,
+        deposit-time: deposit-time,
+        unlock-time: unlock-time,
+        interest-earned: interest,
+        withdrawn: false
+      }
+    )
+    
+    ;; Update tracking variables
+    (var-set vault-counter vault-id)
+    (var-set total-deposits (+ (var-get total-deposits) amount))
+    (add-vault-to-user tx-sender vault-id)
+    
+    (ok vault-id)
+  )
+)
