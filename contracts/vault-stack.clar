@@ -74,3 +74,48 @@
     (ok interest)
   )
 )
+
+(define-read-only (get-vault-status (vault-id uint))
+  (match (get-vault vault-id)
+    vault
+    (let
+      (
+        (current-time stacks-block-height)
+        (is-unlocked (>= current-time (get unlock-time vault)))
+        (time-remaining (if is-unlocked u0 (- (get unlock-time vault) current-time)))
+      )
+      (ok {
+        vault-id: vault-id,
+        owner: (get owner vault),
+        amount: (get amount vault),
+        deposit-time: (get deposit-time vault),
+        unlock-time: (get unlock-time vault),
+        current-time: current-time,
+        is-unlocked: is-unlocked,
+        time-remaining: time-remaining,
+        interest-earned: (get interest-earned vault),
+        withdrawn: (get withdrawn vault)
+      })
+    )
+    err-vault-not-found
+  )
+)
+
+(define-read-only (get-current-time)
+  (ok stacks-block-height)
+)
+
+;; Private functions
+
+(define-private (add-vault-to-user (user principal) (vault-id uint))
+  (let
+    (
+      (current-vaults (get vault-ids (get-user-vaults user)))
+      (updated-vaults (unwrap-panic (as-max-len? (append current-vaults vault-id) u50)))
+    )
+    (map-set user-vault-ids
+      { user: user }
+      { vault-ids: updated-vaults }
+    )
+  )
+)
