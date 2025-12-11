@@ -101,3 +101,101 @@ describe("vault-stack contract", () => {
       );
       expect(result).toBeOk(Cl.uint(expectedInterest));
     });
+
+    it("calculates zero interest for zero amount", () => {
+          const { result } = simnet.callReadOnlyFn(
+            "vault-stack",
+            "calculate-interest",
+            [Cl.uint(0), Cl.uint(MIN_LOCK_DURATION)],
+            address1
+          );
+          expect(result).toBeOk(Cl.uint(0));
+        });
+      });
+    
+      describe("Create Vault", () => {
+        it("successfully creates a vault with valid parameters", () => {
+          const amount = 1000000; // 1 STX
+          const lockDuration = MIN_LOCK_DURATION;
+    
+          const { result, events } = simnet.callPublicFn(
+            "vault-stack",
+            "create-vault",
+            [Cl.uint(amount), Cl.uint(lockDuration)],
+            address1
+          );
+    
+          expect(result).toBeOk(Cl.uint(1)); // First vault ID is 1
+    
+          // Check STX transfer event
+          expect(events).toHaveLength(1);
+          expect(events[0].event).toBe("stx_transfer_event");
+        });
+    
+        it("increments vault counter after creating vaults", () => {
+          simnet.callPublicFn(
+            "vault-stack",
+            "create-vault",
+            [Cl.uint(1000000), Cl.uint(MIN_LOCK_DURATION)],
+            address1
+          );
+    
+          const { result } = simnet.callReadOnlyFn(
+            "vault-stack",
+            "get-vault-counter",
+            [],
+            address1
+          );
+          expect(result).toBeOk(Cl.uint(1));
+        });
+    
+        it("stores vault details correctly", () => {
+          const amount = 2000000;
+          const lockDuration = MIN_LOCK_DURATION * 2;
+          const currentHeight = simnet.blockHeight;
+    
+          simnet.callPublicFn(
+            "vault-stack",
+            "create-vault",
+            [Cl.uint(amount), Cl.uint(lockDuration)],
+            address1
+          );
+    
+          const { result } = simnet.callReadOnlyFn(
+            "vault-stack",
+            "get-vault",
+            [Cl.uint(1)],
+            address1
+          );
+    
+          expect(result).toBeSome(
+            Cl.tuple({
+              owner: Cl.principal(address1),
+              amount: Cl.uint(amount),
+              "deposit-time": Cl.uint(currentHeight),
+              "unlock-time": Cl.uint(currentHeight + lockDuration),
+              "interest-earned": Cl.uint(
+                Math.floor((amount * ANNUAL_INTEREST_RATE * lockDuration) / (10000 * SECONDS_PER_YEAR))
+              ),
+              withdrawn: Cl.bool(false),
+            })
+          );
+        });
+    
+        it("adds vault ID to user's vault list", () => {
+          simnet.callPublicFn(
+            "vault-stack",
+            "create-vault",
+            [Cl.uint(1000000), Cl.uint(MIN_LOCK_DURATION)],
+            address1
+          );
+    
+          const { result } = simnet.callReadOnlyFn(
+            "vault-stack",
+            "get-user-vaults",
+            [Cl.principal(address1)],
+            address1
+          );
+    
+          expect(result).toBeTuple({ "vault-ids": Cl.list([Cl.uint(1)]) });
+        });
