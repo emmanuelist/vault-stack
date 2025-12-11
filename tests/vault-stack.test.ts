@@ -495,3 +495,148 @@ describe("vault-stack contract", () => {
                           [Cl.uint(1)],
                           address2 // Different user
                         );
+
+                        expect(result).toBeErr(Cl.uint(100)); // err-owner-only
+                            });
+                        
+                            it("fails if vault already withdrawn", () => {
+                              const amount = 1000000;
+                              const lockDuration = MIN_LOCK_DURATION;
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "create-vault",
+                                [Cl.uint(amount), Cl.uint(lockDuration)],
+                                address1
+                              );
+                        
+                              simnet.mineEmptyBlocks(lockDuration);
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "withdraw-from-vault",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              // Try to withdraw again
+                              const { result } = simnet.callPublicFn(
+                                "vault-stack",
+                                "withdraw-from-vault",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              expect(result).toBeErr(Cl.uint(106)); // err-already-withdrawn
+                            });
+                        
+                            it("fails for non-existent vault", () => {
+                              const { result } = simnet.callPublicFn(
+                                "vault-stack",
+                                "withdraw-from-vault",
+                                [Cl.uint(999)],
+                                address1
+                              );
+                        
+                              expect(result).toBeErr(Cl.uint(103)); // err-vault-not-found
+                            });
+                          });
+                        
+                          describe("Emergency Withdraw", () => {
+                            it("successfully withdraws principal without interest", () => {
+                              const amount = 1000000;
+                              const lockDuration = MIN_LOCK_DURATION;
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "create-vault",
+                                [Cl.uint(amount), Cl.uint(lockDuration)],
+                                address1
+                              );
+                        
+                              const { result } = simnet.callPublicFn(
+                                "vault-stack",
+                                "emergency-withdraw",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              expect(result).toBeOk(Cl.uint(amount)); // Only principal, no interest
+                            });
+                        
+                            it("marks vault as withdrawn after emergency withdrawal", () => {
+                              const amount = 1000000;
+                              const lockDuration = MIN_LOCK_DURATION;
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "create-vault",
+                                [Cl.uint(amount), Cl.uint(lockDuration)],
+                                address1
+                              );
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "emergency-withdraw",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              const { result } = simnet.callReadOnlyFn(
+                                "vault-stack",
+                                "get-vault",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              const vault = result.expectSome().expectTuple();
+                              expect(vault.withdrawn).toBeBool(true);
+                            });
+                        
+                            it("updates total deposits after emergency withdrawal", () => {
+                              const amount = 1000000;
+                              const lockDuration = MIN_LOCK_DURATION;
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "create-vault",
+                                [Cl.uint(amount), Cl.uint(lockDuration)],
+                                address1
+                              );
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "emergency-withdraw",
+                                [Cl.uint(1)],
+                                address1
+                              );
+                        
+                              const { result } = simnet.callReadOnlyFn(
+                                "vault-stack",
+                                "get-total-deposits",
+                                [],
+                                address1
+                              );
+                        
+                              expect(result).toBeOk(Cl.uint(0));
+                            });
+                        
+                            it("allows emergency withdraw before unlock time", () => {
+                              const amount = 1000000;
+                              const lockDuration = MIN_LOCK_DURATION;
+                        
+                              simnet.callPublicFn(
+                                "vault-stack",
+                                "create-vault",
+                                [Cl.uint(amount), Cl.uint(lockDuration)],
+                                address1
+                              );
+                        
+                              // No time advancement - still locked
+                        
+                              const { result } = simnet.callPublicFn(
+                                "vault-stack",
+                                "emergency-withdraw",
+                                [Cl.uint(1)],
+                                address1
+                              );
