@@ -193,3 +193,47 @@
     )
   )
 )
+
+(define-public (emergency-withdraw (vault-id uint))
+  (let
+    (
+      (vault (unwrap! (get-vault vault-id) err-vault-not-found))
+    )
+    ;; Validations
+    (asserts! (is-eq tx-sender (get owner vault)) err-owner-only)
+    (asserts! (not (get withdrawn vault)) err-already-withdrawn)
+    
+    ;; Early withdrawal forfeits interest, only returns principal
+    (let
+      (
+        (principal-amount (get amount vault))
+      )
+      ;; Transfer only principal back to user
+      (try! (as-contract (stx-transfer? principal-amount tx-sender (get owner vault))))
+      
+      ;; Mark vault as withdrawn
+      (map-set vaults
+        { vault-id: vault-id }
+        (merge vault { withdrawn: true })
+      )
+      
+      ;; Update total deposits
+      (var-set total-deposits (- (var-get total-deposits) principal-amount))
+      
+      (ok principal-amount)
+    )
+  )
+)
+
+;; Admin functions for contract owner
+
+(define-public (fund-contract (amount uint))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (stx-transfer? amount tx-sender (as-contract tx-sender))
+  )
+)
+
+(define-read-only (get-contract-balance)
+  (ok (stx-get-balance (as-contract tx-sender)))
+)
