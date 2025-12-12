@@ -1,4 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import * as walletService from '@/lib/wallet';
+import * as contractService from '@/lib/contract';
+import * as apiService from '@/lib/api';
+import { 
+  microStxToStx, 
+  stxToMicroStx, 
+  blockHeightToDate, 
+  blocksToSeconds 
+} from '@/lib/stacks-utils';
+import { ANNUAL_INTEREST_RATE_PERCENT } from '@/lib/stacks-config';
 
 export type VaultStatus = 'locked' | 'unlocked' | 'withdrawn';
 
@@ -51,16 +61,54 @@ interface VaultContextType {
   isLoading: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  createVault: (amount: number, durationBlocks: number) => Promise<Vault>;
+  createVault: (amount: number, durationSeconds: number) => Promise<Vault>;
   withdrawVault: (vaultId: string) => Promise<void>;
   emergencyWithdraw: (vaultId: string) => Promise<void>;
   getVaultById: (id: string) => Vault | undefined;
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
-// Mock data generation
+/**
+ * Convert contract vault data to app Vault interface
+ */
+function convertVaultData(
+  vaultId: number,
+  vaultStatus: contractService.VaultStatus,
+  currentBlockHeight: number
+): Vault {
+  const principal = microStxToStx(vaultStatus.amount);
+  const interestEarned = microStxToStx(vaultStatus.interestEarned);
+  const depositBlock = Number(vaultStatus.depositTime);
+  const unlockBlock = Number(vaultStatus.unlockTime);
+  
+  let status: VaultStatus;
+  if (vaultStatus.withdrawn) {
+    status = 'withdrawn';
+  } else if (vaultStatus.isUnlocked) {
+    status = 'unlocked';
+  } else {
+    status = 'locked';
+  }
+
+  const createdAt = blockHeightToDate(depositBlock, currentBlockHeight);
+  
+  return {
+    id: vaultId.toString(),
+    owner: vaultStatus.owner,
+    principal,
+    interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+    interestEarned,
+    depositBlock,
+    unlockBlock,
+    status,
+    createdAt,
+    withdrawnAt: vaultStatus.withdrawn ? new Date() : undefined,
+  };
+}
+
+// Mock data generation (fallback for offline testing)
 const generateMockVaults = (): Vault[] => {
   const currentBlock = 854732;
   const addresses = [
@@ -228,9 +276,17 @@ const generateMockActivities = (): Activity[] => {
 };
 
 export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [vaults, setVaults] = useState<Vault[]>(generateMockVaults());
-  const [activities, setActivities] = useState<Activity[]>(generateMockActivities());
+  const [vaults, setVaults] = useState<Vault[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<ContractStats>({
+    totalDeposits: 0,
+    totalVaults: 0,
+    contractBalance: 0,
+    currentBlockHeight: 0,
+    interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+    totalInterestPaid: 0,
+  });
   const [wallet, setWallet] = useState<WalletState>({
     isConnected: false,
     address: null,
@@ -238,146 +294,241 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     network: 'mainnet',
   });
 
-  const stats: ContractStats = {
-    totalDeposits: vaults.reduce((sum, v) => sum + v.principal, 0),
-    totalVaults: vaults.length,
-    contractBalance: 125000,
-    currentBlockHeight: 854732,
-    interestRate: 5.5,
-    totalInterestPaid: 15420,
-  };
-
   const userVaults = vaults.filter((v) => v.owner === wallet.address);
 
-  // Simulate block height updates
+  // Restore wallet connection on mount
+  useEffect(() => {
+    const restoreWallet = async () => {
+      const connected = walletService.checkWalletConnection();
+      if (connected) {
+        const walletInfo = walletService.getConnectedWallet();
+        if (walletInfo) {
+          const balance = await apiService.fetchAccountBalance(walletInfo.address);
+          setWallet({
+            isConnected: true,
+            address: walletInfo.address,
+            balance: microStxToStx(balance),
+            network: walletInfo.network,
+          });
+        }
+      }
+    };
+    restoreWallet();
+  }, []);
+
+  // Refresh data when wallet connects
+  useEffect(() => {
+    if (wallet.isConnected && wallet.address) {
+      refreshData();
+    }
+  }, [wallet.isConnected, wallet.address]);
+
+  // Periodically update block height and vault statuses
   useEffect(() => {
     const interval = setInterval(() => {
-      // In production, this would fetch real block height
-    }, 10000);
+      if (wallet.isConnected) {
+        refreshData();
+      }
+    }, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [wallet.isConnected]);
 
   const connectWallet = useCallback(async () => {
     setIsLoading(true);
-    // Simulate wallet connection delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setWallet({
-      isConnected: true,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      balance: 12450.75,
-      network: 'mainnet',
-    });
-    setIsLoading(false);
+    try {
+      const walletInfo = await walletService.connectWallet();
+      const balance = await apiService.fetchAccountBalance(walletInfo.address);
+      
+      setWallet({
+        isConnected: true,
+        address: walletInfo.address,
+        balance: microStxToStx(balance),
+        network: walletInfo.network,
+      });
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const disconnectWallet = useCallback(() => {
+    walletService.disconnectWallet();
     setWallet({
       isConnected: false,
       address: null,
       balance: 0,
       network: 'mainnet',
     });
+    setVaults([]);
+    setActivities([]);
   }, []);
 
   const createVault = useCallback(
-    async (amount: number, durationBlocks: number): Promise<Vault> => {
+    async (amount: number, durationSeconds: number): Promise<Vault> => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
+
       setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const amountMicroStx = stxToMicroStx(amount);
+        
+        // Create vault transaction
+        const txId = await contractService.createVault(
+          amountMicroStx,
+          durationSeconds,
+          wallet.address
+        );
 
-      const newVault: Vault = {
-        id: `vault-${Date.now()}`,
-        owner: wallet.address!,
-        principal: amount,
-        interestRate: 5.5,
-        interestEarned: 0,
-        depositBlock: stats.currentBlockHeight,
-        unlockBlock: stats.currentBlockHeight + durationBlocks,
-        status: 'locked',
-        createdAt: new Date(),
-      };
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          throw new Error('Transaction failed or timed out');
+        }
 
-      setVaults((prev) => [newVault, ...prev]);
-
-      const newActivity: Activity = {
-        id: `act-${Date.now()}`,
-        type: 'deposit',
-        vaultId: newVault.id,
-        amount,
-        address: wallet.address!,
-        blockHeight: stats.currentBlockHeight,
-        timestamp: new Date(),
-        txHash: `0x${Math.random().toString(16).slice(2)}`,
-      };
-
-      setActivities((prev) => [newActivity, ...prev]);
-      setWallet((prev) => ({ ...prev, balance: prev.balance - amount }));
-      setIsLoading(false);
-
-      return newVault;
+        // Refresh data to get the new vault
+        await refreshData();
+        
+        // Get the latest vault (should be the one we just created)
+        const vaultCounter = await contractService.getVaultCounter();
+        const vaultStatus = await contractService.getVaultStatus(vaultCounter);
+        const currentBlock = await contractService.getCurrentTime();
+        
+        return convertVaultData(vaultCounter, vaultStatus, currentBlock);
+      } catch (error) {
+        console.error('Failed to create vault:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
     },
-    [wallet.address, stats.currentBlockHeight]
+    [wallet.address]
   );
 
-  const withdrawVault = useCallback(async (vaultId: string) => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+  const withdrawVault = useCallback(
+    async (vaultId: string) => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
 
-    setVaults((prev) =>
-      prev.map((v) =>
-        v.id === vaultId ? { ...v, status: 'withdrawn' as VaultStatus, withdrawnAt: new Date() } : v
-      )
-    );
+      setIsLoading(true);
+      try {
+        const vaultIdNum = parseInt(vaultId);
+        
+        // Withdraw from vault
+        const txId = await contractService.withdrawFromVault(vaultIdNum, wallet.address);
 
-    const vault = vaults.find((v) => v.id === vaultId);
-    if (vault) {
-      const totalAmount = vault.principal + vault.interestEarned;
-      setWallet((prev) => ({ ...prev, balance: prev.balance + totalAmount }));
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          throw new Error('Transaction failed or timed out');
+        }
 
-      const newActivity: Activity = {
-        id: `act-${Date.now()}`,
-        type: 'withdrawal',
-        vaultId,
-        amount: totalAmount,
-        address: wallet.address!,
-        blockHeight: stats.currentBlockHeight,
-        timestamp: new Date(),
-        txHash: `0x${Math.random().toString(16).slice(2)}`,
-      };
+        // Refresh data
+        await refreshData();
+      } catch (error) {
+        console.error('Failed to withdraw from vault:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [wallet.address]
+  );
 
-      setActivities((prev) => [newActivity, ...prev]);
-    }
+  const emergencyWithdraw = useCallback(
+    async (vaultId: string) => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
 
-    setIsLoading(false);
-  }, [vaults, wallet.address, stats.currentBlockHeight]);
+      setIsLoading(true);
+      try {
+        const vaultIdNum = parseInt(vaultId);
+        
+        // Emergency withdraw
+        const txId = await contractService.emergencyWithdraw(vaultIdNum, wallet.address);
 
-  const emergencyWithdraw = useCallback(async (vaultId: string) => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          throw new Error('Transaction failed or timed out');
+        }
 
-    setVaults((prev) =>
-      prev.map((v) =>
-        v.id === vaultId ? { ...v, status: 'withdrawn' as VaultStatus, withdrawnAt: new Date() } : v
-      )
-    );
-
-    const vault = vaults.find((v) => v.id === vaultId);
-    if (vault) {
-      // Emergency withdrawal has penalty - only return 95% of principal
-      const totalAmount = vault.principal * 0.95;
-      setWallet((prev) => ({ ...prev, balance: prev.balance + totalAmount }));
-    }
-
-    setIsLoading(false);
-  }, [vaults]);
+        // Refresh data
+        await refreshData();
+      } catch (error) {
+        console.error('Failed to emergency withdraw:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [wallet.address]
+  );
 
   const getVaultById = useCallback(
     (id: string) => vaults.find((v) => v.id === id),
     [vaults]
   );
 
-  const refreshData = useCallback(() => {
-    // In production, this would fetch fresh data from the blockchain
-  }, []);
+  const refreshData = useCallback(async () => {
+    try {
+      // Fetch current block height
+      const currentBlock = await contractService.getCurrentTime();
+      
+      // Fetch contract stats
+      const [totalDeposits, vaultCounter, contractBalance] = await Promise.all([
+        contractService.getTotalDeposits(),
+        contractService.getVaultCounter(),
+        contractService.getContractBalance(),
+      ]);
+
+      setStats({
+        totalDeposits: microStxToStx(totalDeposits),
+        totalVaults: vaultCounter,
+        contractBalance: microStxToStx(contractBalance),
+        currentBlockHeight: currentBlock,
+        interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+        totalInterestPaid: 0, // This would need to be calculated from activity history
+      });
+
+      // Fetch user vaults if wallet is connected
+      if (wallet.address) {
+        const userVaultIds = await contractService.getUserVaults(wallet.address);
+        
+        // Fetch each vault's status
+        const vaultDataPromises = userVaultIds.map(async (vaultId) => {
+          try {
+            const vaultStatus = await contractService.getVaultStatus(vaultId);
+            return convertVaultData(vaultId, vaultStatus, currentBlock);
+          } catch (error) {
+            console.error(`Error fetching vault ${vaultId}:`, error);
+            return null;
+          }
+        });
+
+        const vaultDataArray = await Promise.all(vaultDataPromises);
+        const validVaults = vaultDataArray.filter((v): v is Vault => v !== null);
+        setVaults(validVaults);
+
+        // Update wallet balance
+        const balance = await apiService.fetchAccountBalance(wallet.address);
+        setWallet((prev) => ({ ...prev, balance: microStxToStx(balance) }));
+
+        // Fetch recent transactions for activity feed
+        const transactions = await apiService.fetchAccountTransactions(wallet.address, 20);
+        // TODO: Parse transactions to create activity entries
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+  }, [wallet.address]);
 
   return (
     <VaultContext.Provider
