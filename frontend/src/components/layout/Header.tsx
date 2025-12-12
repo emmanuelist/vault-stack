@@ -93,7 +93,7 @@ export const Header = () => {
                 className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                <span className="text-xs font-medium text-success">Mainnet</span>
+                <span className="text-xs font-medium text-success capitalize">{wallet.network}</span>
               </motion.div>
             )}
 
@@ -128,7 +128,15 @@ export const Header = () => {
                     </p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem 
+                    className="gap-2"
+                    onClick={() => {
+                      const explorerUrl = wallet.network === 'mainnet' 
+                        ? `https://explorer.hiro.so/address/${wallet.address}`
+                        : `https://explorer.hiro.so/address/${wallet.address}?chain=testnet`;
+                      window.open(explorerUrl, '_blank');
+                    }}
+                  >
                     <ExternalLink className="w-3.5 h-3.5" />
                     View on Explorer
                   </DropdownMenuItem>
