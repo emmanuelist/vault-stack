@@ -1,0 +1,301 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Vault Stack Design System - Nocturne IDE Theme */
+
+@layer base {
+  :root {
+    /* Core Surfaces */
+    --background: 220 16% 8%;
+    --background-elevated: 220 14% 11%;
+    --foreground: 210 20% 92%;
+
+    --card: 220 14% 11%;
+    --card-foreground: 210 20% 92%;
+    --card-hover: 220 14% 14%;
+
+    --popover: 220 14% 13%;
+    --popover-foreground: 210 20% 92%;
+
+    /* Primary - Teal accent */
+    --primary: 174 72% 56%;
+    --primary-foreground: 220 16% 8%;
+    --primary-muted: 174 50% 25%;
+    --primary-glow: 174 72% 56%;
+
+    /* Secondary */
+    --secondary: 220 14% 16%;
+    --secondary-foreground: 210 20% 85%;
+
+    /* Muted */
+    --muted: 220 12% 18%;
+    --muted-foreground: 215 15% 55%;
+
+    /* Accent - Amber for highlights */
+    --accent: 38 92% 50%;
+    --accent-foreground: 220 16% 8%;
+    --accent-muted: 38 70% 30%;
+
+    /* States */
+    --success: 158 64% 52%;
+    --success-foreground: 220 16% 8%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 16% 8%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 98%;
+
+    /* Borders */
+    --border: 220 12% 20%;
+    --border-subtle: 220 10% 16%;
+    --input: 220 12% 18%;
+    --ring: 174 72% 56%;
+
+    /* Radius */
+    --radius: 0.75rem;
+
+    /* Vault States */
+    --vault-locked: 174 72% 56%;
+    --vault-unlocked: 38 92% 50%;
+    --vault-withdrawn: 220 10% 40%;
+
+    /* Sidebar */
+    --sidebar-background: 220 14% 9%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 174 72% 56%;
+    --sidebar-primary-foreground: 220 16% 8%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 220 12% 16%;
+    --sidebar-ring: 174 72% 56%;
+
+    /* Chart colors */
+    --chart-1: 174 72% 56%;
+    --chart-2: 38 92% 50%;
+    --chart-3: 262 80% 65%;
+    --chart-4: 158 64% 52%;
+    --chart-5: 0 72% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Typography */
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  .font-sans {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  /* Glassmorphism */
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  .glass-strong {
+    @apply bg-card/95 backdrop-blur-2xl border border-border;
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.15),
+                0 0 80px hsl(var(--primary) / 0.1);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px hsl(var(--accent) / 0.15),
+                0 0 80px hsl(var(--accent) / 0.1);
+  }
+
+  .glow-primary-strong {
+    box-shadow: 0 0 60px hsl(var(--primary) / 0.25),
+                0 0 120px hsl(var(--primary) / 0.15);
+  }
+
+  /* Grid background */
+  .bg-grid {
+    background-image: 
+      linear-gradient(hsl(var(--border-subtle)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border-subtle)) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Noise texture overlay */
+  .noise {
+    position: relative;
+  }
+
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Radial spotlight */
+  .spotlight {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      hsl(var(--primary) / 0.15),
+      transparent 50%
+    );
+  }
+
+  .spotlight-accent {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      hsl(var(--accent) / 0.12),
+      transparent 50%
+    );
+  }
+
+  /* Card states */
+  .vault-card-locked {
+    @apply border-l-4 border-l-[hsl(var(--vault-locked))];
+  }
+
+  .vault-card-unlocked {
+    @apply border-l-4 border-l-[hsl(var(--vault-unlocked))];
+  }
+
+  .vault-card-withdrawn {
+    @apply border-l-4 border-l-[hsl(var(--vault-withdrawn))];
+  }
+
+  /* Status badges */
+  .badge-locked {
+    @apply bg-[hsl(var(--vault-locked)/0.15)] text-[hsl(var(--vault-locked))] border border-[hsl(var(--vault-locked)/0.3)];
+  }
+
+  .badge-unlocked {
+    @apply bg-[hsl(var(--vault-unlocked)/0.15)] text-[hsl(var(--vault-unlocked))] border border-[hsl(var(--vault-unlocked)/0.3)];
+  }
+
+  .badge-withdrawn {
+    @apply bg-[hsl(var(--vault-withdrawn)/0.15)] text-[hsl(var(--vault-withdrawn))] border border-[hsl(var(--vault-withdrawn)/0.3)];
+  }
+
+  /* Interactive elements */
+  .interactive {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .interactive:hover {
+    @apply scale-[1.02];
+  }
+
+  .interactive:active {
+    @apply scale-[0.98];
+  }
+
+  /* Button pulse */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.4);
+    }
+  }
+
+  /* Digit roll animation */
+  .digit-roll {
+    display: inline-block;
+    overflow: hidden;
+  }
+
+  /* Progress bar gradient */
+  .progress-gradient {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.7)
+    );
+  }
+
+  /* Striping pattern */
+  .striping {
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 10px,
+      hsl(var(--border-subtle)) 10px,
+      hsl(var(--border-subtle)) 11px
+    );
+  }
+}
+
+@layer utilities {
+  /* Text gradients */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.7)] bg-clip-text text-transparent;
+  }
+
+  .text-gradient-accent {
+    @apply bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--accent)/0.7)] bg-clip-text text-transparent;
+  }
+
+  /* Fade edges */
+  .fade-y {
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+  }
+
+  .fade-x {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
