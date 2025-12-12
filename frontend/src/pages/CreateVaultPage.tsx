@@ -92,6 +92,7 @@ const CreateVaultPage = () => {
 
     setIsCreating(true);
     try {
+      // Pass durationBlocks to contract (contract expects blocks, not seconds)
       const vault = await createVault(parseFloat(amount), durationBlocks);
       setCreatedVaultId(vault.id);
       setShowReview(false);

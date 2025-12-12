@@ -1,4 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import * as walletService from '@/lib/wallet';
+import * as contractService from '@/lib/contract';
+import * as apiService from '@/lib/api';
+import { 
+  microStxToStx, 
+  stxToMicroStx, 
+  blockHeightToDate, 
+  blocksToSeconds 
+} from '@/lib/stacks-utils';
+import { ANNUAL_INTEREST_RATE_PERCENT, CONTRACT_ADDRESS, CONTRACT_NAME, MIN_LOCK_DURATION_BLOCKS } from '@/lib/stacks-config';
 
 export type VaultStatus = 'locked' | 'unlocked' | 'withdrawn';
 
@@ -55,182 +65,180 @@ interface VaultContextType {
   withdrawVault: (vaultId: string) => Promise<void>;
   emergencyWithdraw: (vaultId: string) => Promise<void>;
   getVaultById: (id: string) => Vault | undefined;
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
-// Mock data generation
-const generateMockVaults = (): Vault[] => {
-  const currentBlock = 854732;
-  const addresses = [
-    'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-    'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE',
-    'SP1HTBVD3JG9C05J7HBJTHGR0GGW7KXW28M5JS8QE',
-    'SP2KAF9RF86PVX3NEE27DFV1CQX0T4WGR41X3S45C',
-  ];
+/**
+ * Convert contract vault data to app Vault interface
+ */
+function convertVaultData(
+  vaultId: number,
+  vaultStatus: contractService.VaultStatus,
+  currentBlockHeight: number
+): Vault {
+  const principal = microStxToStx(vaultStatus.amount);
+  const interestEarned = microStxToStx(vaultStatus.interestEarned);
+  const depositBlock = Number(vaultStatus.depositTime);
+  const unlockBlock = Number(vaultStatus.unlockTime);
+  
+  let status: VaultStatus;
+  if (vaultStatus.withdrawn) {
+    status = 'withdrawn';
+  } else if (vaultStatus.isUnlocked) {
+    status = 'unlocked';
+  } else {
+    status = 'locked';
+  }
 
-  return [
-    {
-      id: 'vault-001',
-      owner: addresses[0],
-      principal: 5000,
-      interestRate: 5.2,
-      interestEarned: 142.5,
-      depositBlock: currentBlock - 2160,
-      unlockBlock: currentBlock + 4320,
-      status: 'locked',
-      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-002',
-      owner: addresses[0],
-      principal: 2500,
-      interestRate: 4.8,
-      interestEarned: 89.25,
-      depositBlock: currentBlock - 4320,
-      unlockBlock: currentBlock - 100,
-      status: 'unlocked',
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-003',
-      owner: addresses[0],
-      principal: 10000,
-      interestRate: 6.1,
-      interestEarned: 0,
-      depositBlock: currentBlock - 8640,
-      unlockBlock: currentBlock - 2160,
-      status: 'withdrawn',
-      createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-      withdrawnAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-004',
-      owner: addresses[1],
-      principal: 7500,
-      interestRate: 5.5,
-      interestEarned: 285.0,
-      depositBlock: currentBlock - 6480,
-      unlockBlock: currentBlock + 1080,
-      status: 'locked',
-      createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-005',
-      owner: addresses[2],
-      principal: 15000,
-      interestRate: 7.2,
-      interestEarned: 540.0,
-      depositBlock: currentBlock - 4320,
-      unlockBlock: currentBlock + 8640,
-      status: 'locked',
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-006',
-      owner: addresses[3],
-      principal: 3200,
-      interestRate: 4.5,
-      interestEarned: 72.0,
-      depositBlock: currentBlock - 2160,
-      unlockBlock: currentBlock - 50,
-      status: 'unlocked',
-      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'vault-007',
-      owner: addresses[0],
-      principal: 8200,
-      interestRate: 5.8,
-      interestEarned: 318.5,
-      depositBlock: currentBlock - 5400,
-      unlockBlock: currentBlock + 2700,
-      status: 'locked',
-      createdAt: new Date(Date.now() - 37 * 24 * 60 * 60 * 1000),
-    },
-  ];
-};
+  const createdAt = blockHeightToDate(depositBlock, currentBlockHeight);
+  
+  return {
+    id: vaultId.toString(),
+    owner: vaultStatus.owner,
+    principal,
+    interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+    interestEarned,
+    depositBlock,
+    unlockBlock,
+    status,
+    createdAt,
+    withdrawnAt: vaultStatus.withdrawn ? new Date() : undefined,
+  };
+}
 
-const generateMockActivities = (): Activity[] => {
-  const currentBlock = 854732;
-  return [
-    {
-      id: 'act-001',
-      type: 'deposit',
-      vaultId: 'vault-001',
-      amount: 5000,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      blockHeight: currentBlock - 2160,
-      timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      txHash: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12',
-    },
-    {
-      id: 'act-002',
-      type: 'deposit',
-      vaultId: 'vault-002',
-      amount: 2500,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      blockHeight: currentBlock - 4320,
-      timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      txHash: '0x2b3c4d5e6f7890abcdef1234567890abcdef1234',
-    },
-    {
-      id: 'act-003',
-      type: 'withdrawal',
-      vaultId: 'vault-003',
-      amount: 10610,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      blockHeight: currentBlock - 2160,
-      timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      txHash: '0x3c4d5e6f7890abcdef1234567890abcdef123456',
-    },
-    {
-      id: 'act-004',
-      type: 'funding',
-      amount: 25000,
-      address: 'SP1HTBVD3JG9C05J7HBJTHGR0GGW7KXW28M5JS8QE',
-      blockHeight: currentBlock - 1440,
-      timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      txHash: '0x4d5e6f7890abcdef1234567890abcdef12345678',
-    },
-    {
-      id: 'act-005',
-      type: 'deposit',
-      vaultId: 'vault-005',
-      amount: 15000,
-      address: 'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE',
-      blockHeight: currentBlock - 4320,
-      timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      txHash: '0x5e6f7890abcdef1234567890abcdef1234567890',
-    },
-    {
-      id: 'act-006',
-      type: 'unlock',
-      vaultId: 'vault-002',
-      amount: 2500,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      blockHeight: currentBlock - 100,
-      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      txHash: '0x6f7890abcdef1234567890abcdef123456789012',
-    },
-    {
-      id: 'act-007',
-      type: 'deposit',
-      vaultId: 'vault-007',
-      amount: 8200,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      blockHeight: currentBlock - 5400,
-      timestamp: new Date(Date.now() - 37 * 24 * 60 * 60 * 1000),
-      txHash: '0x7890abcdef1234567890abcdef12345678901234',
-    },
-  ];
-};
+/**
+ * Parse blockchain transactions to Activity objects
+ */
+function parseTransactionsToActivities(
+  transactions: apiService.Transaction[],
+  userAddress: string
+): Activity[] {
+  const activities: Activity[] = [];
+  
+  for (const tx of transactions) {
+    // Only process successful contract calls to our vault contract
+    if (tx.tx_status !== 'success' || tx.tx_type !== 'contract_call') {
+      continue;
+    }
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contractCall = tx as any;
+    
+    // Check if it's a call to our contract
+    const contractId = contractCall.contract_call?.contract_id || '';
+    if (!contractId.includes(CONTRACT_ADDRESS) || !contractId.includes(CONTRACT_NAME)) {
+      continue;
+    }
+    
+    const functionName = contractCall.contract_call?.function_name || '';
+    const timestamp = new Date(tx.burn_block_time_iso || tx.burn_block_time * 1000);
+    
+    // Parse create-vault transactions (deposits)
+    if (functionName === 'create-vault') {
+      const events = contractCall.events || [];
+      let amount = 0;
+      
+      // Look for STX transfer event to get the amount
+      for (const event of events) {
+        if (event.type === 'stx_transfer_event' && event.stx_transfer_event) {
+          const transfer = event.stx_transfer_event;
+          if (transfer.sender === userAddress) {
+            amount = microStxToStx(BigInt(transfer.amount));
+            break;
+          }
+        }
+      }
+      
+      if (amount > 0) {
+        activities.push({
+          id: `act-${tx.tx_id}`,
+          type: 'deposit',
+          vaultId: undefined, // Could extract from tx result if needed
+          amount,
+          address: tx.sender_address,
+          blockHeight: tx.block_height,
+          timestamp,
+          txHash: tx.tx_id,
+        });
+      }
+    }
+    
+    // Parse withdraw-from-vault transactions (withdrawals)
+    if (functionName === 'withdraw-from-vault' || functionName === 'emergency-withdraw') {
+      const events = contractCall.events || [];
+      let amount = 0;
+      
+      // Look for STX transfer event to get the amount
+      for (const event of events) {
+        if (event.type === 'stx_transfer_event' && event.stx_transfer_event) {
+          const transfer = event.stx_transfer_event;
+          if (transfer.recipient === userAddress) {
+            amount = microStxToStx(BigInt(transfer.amount));
+            break;
+          }
+        }
+      }
+      
+      if (amount > 0) {
+        activities.push({
+          id: `act-${tx.tx_id}`,
+          type: 'withdrawal',
+          vaultId: undefined, // Could extract from tx args if needed
+          amount,
+          address: tx.sender_address,
+          blockHeight: tx.block_height,
+          timestamp,
+          txHash: tx.tx_id,
+        });
+      }
+    }
+    
+    // Parse fund-contract transactions (admin funding)
+    if (functionName === 'fund-contract') {
+      const events = contractCall.events || [];
+      let amount = 0;
+      
+      // Look for STX transfer event
+      for (const event of events) {
+        if (event.type === 'stx_transfer_event' && event.stx_transfer_event) {
+          const transfer = event.stx_transfer_event;
+          amount = microStxToStx(BigInt(transfer.amount));
+          break;
+        }
+      }
+      
+      if (amount > 0) {
+        activities.push({
+          id: `act-${tx.tx_id}`,
+          type: 'funding',
+          amount,
+          address: tx.sender_address,
+          blockHeight: tx.block_height,
+          timestamp,
+          txHash: tx.tx_id,
+        });
+      }
+    }
+  }
+  
+  // Sort by block height descending (most recent first)
+  return activities.sort((a, b) => b.blockHeight - a.blockHeight);
+}
 
 export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [vaults, setVaults] = useState<Vault[]>(generateMockVaults());
-  const [activities, setActivities] = useState<Activity[]>(generateMockActivities());
+  const [vaults, setVaults] = useState<Vault[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<ContractStats>({
+    totalDeposits: 0,
+    totalVaults: 0,
+    contractBalance: 0,
+    currentBlockHeight: 0,
+    interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+    totalInterestPaid: 0,
+  });
   const [wallet, setWallet] = useState<WalletState>({
     isConnected: false,
     address: null,
@@ -238,146 +246,301 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     network: 'mainnet',
   });
 
-  const stats: ContractStats = {
-    totalDeposits: vaults.reduce((sum, v) => sum + v.principal, 0),
-    totalVaults: vaults.length,
-    contractBalance: 125000,
-    currentBlockHeight: 854732,
-    interestRate: 5.5,
-    totalInterestPaid: 15420,
-  };
-
   const userVaults = vaults.filter((v) => v.owner === wallet.address);
 
-  // Simulate block height updates
+  // Restore wallet connection on mount
+  useEffect(() => {
+    const restoreWallet = async () => {
+      const connected = walletService.checkWalletConnection();
+      if (connected) {
+        const walletInfo = walletService.getConnectedWallet();
+        if (walletInfo) {
+          const balance = await apiService.fetchAccountBalance(walletInfo.address);
+          setWallet({
+            isConnected: true,
+            address: walletInfo.address,
+            balance: microStxToStx(balance),
+            network: walletInfo.network,
+          });
+        }
+      }
+    };
+    restoreWallet();
+  }, []);
+
+  // Refresh data when wallet connects
+  useEffect(() => {
+    if (wallet.isConnected && wallet.address) {
+      refreshData();
+    }
+  }, [wallet.isConnected, wallet.address]);
+
+  // Periodically update block height and vault statuses
   useEffect(() => {
     const interval = setInterval(() => {
-      // In production, this would fetch real block height
-    }, 10000);
+      if (wallet.isConnected) {
+        refreshData();
+      }
+    }, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [wallet.isConnected]);
 
   const connectWallet = useCallback(async () => {
     setIsLoading(true);
-    // Simulate wallet connection delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setWallet({
-      isConnected: true,
-      address: 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7',
-      balance: 12450.75,
-      network: 'mainnet',
-    });
-    setIsLoading(false);
+    try {
+      const walletInfo = await walletService.connectWallet();
+      const balance = await apiService.fetchAccountBalance(walletInfo.address);
+      
+      setWallet({
+        isConnected: true,
+        address: walletInfo.address,
+        balance: microStxToStx(balance),
+        network: walletInfo.network,
+      });
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const disconnectWallet = useCallback(() => {
+    walletService.disconnectWallet();
     setWallet({
       isConnected: false,
       address: null,
       balance: 0,
       network: 'mainnet',
     });
+    setVaults([]);
+    setActivities([]);
   }, []);
 
   const createVault = useCallback(
     async (amount: number, durationBlocks: number): Promise<Vault> => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Validate minimum lock duration (7 days = ~1008 blocks)
+      if (durationBlocks < MIN_LOCK_DURATION_BLOCKS) {
+        const minDays = Math.round(MIN_LOCK_DURATION_BLOCKS / 144);
+        const selectedDays = (durationBlocks / 144).toFixed(1);
+        throw new Error(`Minimum lock duration is ${minDays} days. You selected ${selectedDays} day(s).`);
+      }
+
+      // Validate amount
+      if (amount <= 0) {
+        throw new Error('Amount must be greater than 0 STX');
+      }
+
       setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const amountMicroStx = stxToMicroStx(amount);
+        
+        // Create vault transaction (pass blocks, not seconds)
+        const txId = await contractService.createVault(
+          amountMicroStx,
+          durationBlocks,
+          wallet.address
+        );
 
-      const newVault: Vault = {
-        id: `vault-${Date.now()}`,
-        owner: wallet.address!,
-        principal: amount,
-        interestRate: 5.5,
-        interestEarned: 0,
-        depositBlock: stats.currentBlockHeight,
-        unlockBlock: stats.currentBlockHeight + durationBlocks,
-        status: 'locked',
-        createdAt: new Date(),
-      };
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          // Get the transaction to see why it failed
+          const tx = await apiService.fetchTransaction(txId);
+          if (tx?.tx_status === 'abort_by_response') {
+            throw new Error('Transaction rejected by contract. Please verify all requirements are met.');
+          } else if (tx?.tx_status === 'abort_by_post_condition') {
+            throw new Error('Transaction failed: Insufficient balance or post-condition not met.');
+          }
+          throw new Error('Transaction failed or timed out. Please check the blockchain explorer for details.');
+        }
 
-      setVaults((prev) => [newVault, ...prev]);
-
-      const newActivity: Activity = {
-        id: `act-${Date.now()}`,
-        type: 'deposit',
-        vaultId: newVault.id,
-        amount,
-        address: wallet.address!,
-        blockHeight: stats.currentBlockHeight,
-        timestamp: new Date(),
-        txHash: `0x${Math.random().toString(16).slice(2)}`,
-      };
-
-      setActivities((prev) => [newActivity, ...prev]);
-      setWallet((prev) => ({ ...prev, balance: prev.balance - amount }));
-      setIsLoading(false);
-
-      return newVault;
+        // Refresh data to get the new vault
+        await refreshData();
+        
+        // Get the latest vault (should be the one we just created)
+        const vaultCounter = await contractService.getVaultCounter();
+        const vaultStatus = await contractService.getVaultStatus(vaultCounter);
+        const currentBlock = await contractService.getCurrentTime();
+        
+        return convertVaultData(vaultCounter, vaultStatus, currentBlock);
+      } catch (error) {
+        console.error('Failed to create vault:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
     },
-    [wallet.address, stats.currentBlockHeight]
+    [wallet.address]
   );
 
-  const withdrawVault = useCallback(async (vaultId: string) => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+  const withdrawVault = useCallback(
+    async (vaultId: string) => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
 
-    setVaults((prev) =>
-      prev.map((v) =>
-        v.id === vaultId ? { ...v, status: 'withdrawn' as VaultStatus, withdrawnAt: new Date() } : v
-      )
-    );
+      setIsLoading(true);
+      try {
+        const vaultIdNum = parseInt(vaultId);
+        
+        // Withdraw from vault
+        const txId = await contractService.withdrawFromVault(vaultIdNum, wallet.address);
 
-    const vault = vaults.find((v) => v.id === vaultId);
-    if (vault) {
-      const totalAmount = vault.principal + vault.interestEarned;
-      setWallet((prev) => ({ ...prev, balance: prev.balance + totalAmount }));
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          // Get the transaction to see why it failed
+          const tx = await apiService.fetchTransaction(txId);
+          if (tx?.tx_status === 'abort_by_response') {
+            throw new Error('Withdrawal rejected by contract. The vault may not be mature yet.');
+          } else if (tx?.tx_status === 'abort_by_post_condition') {
+            throw new Error('Transaction failed: Post-condition not met.');
+          }
+          throw new Error('Transaction failed or timed out. Please check the blockchain explorer for details.');
+        }
 
-      const newActivity: Activity = {
-        id: `act-${Date.now()}`,
-        type: 'withdrawal',
-        vaultId,
-        amount: totalAmount,
-        address: wallet.address!,
-        blockHeight: stats.currentBlockHeight,
-        timestamp: new Date(),
-        txHash: `0x${Math.random().toString(16).slice(2)}`,
-      };
+        // Refresh data
+        await refreshData();
+      } catch (error) {
+        console.error('Failed to withdraw from vault:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [wallet.address]
+  );
 
-      setActivities((prev) => [newActivity, ...prev]);
-    }
+  const emergencyWithdraw = useCallback(
+    async (vaultId: string) => {
+      if (!wallet.address) {
+        throw new Error('Wallet not connected');
+      }
 
-    setIsLoading(false);
-  }, [vaults, wallet.address, stats.currentBlockHeight]);
+      setIsLoading(true);
+      try {
+        const vaultIdNum = parseInt(vaultId);
+        
+        // Emergency withdraw
+        const txId = await contractService.emergencyWithdraw(vaultIdNum, wallet.address);
 
-  const emergencyWithdraw = useCallback(async (vaultId: string) => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Wait for confirmation
+        const confirmed = await apiService.waitForTransactionConfirmation(txId);
+        
+        if (!confirmed) {
+          // Get the transaction to see why it failed
+          const tx = await apiService.fetchTransaction(txId);
+          if (tx?.tx_status === 'abort_by_response') {
+            throw new Error('Emergency withdrawal rejected by contract. The vault may be in an invalid state.');
+          } else if (tx?.tx_status === 'abort_by_post_condition') {
+            throw new Error('Transaction failed: Post-condition not met.');
+          }
+          throw new Error('Transaction failed or timed out. Please check the blockchain explorer for details.');
+        }
 
-    setVaults((prev) =>
-      prev.map((v) =>
-        v.id === vaultId ? { ...v, status: 'withdrawn' as VaultStatus, withdrawnAt: new Date() } : v
-      )
-    );
-
-    const vault = vaults.find((v) => v.id === vaultId);
-    if (vault) {
-      // Emergency withdrawal has penalty - only return 95% of principal
-      const totalAmount = vault.principal * 0.95;
-      setWallet((prev) => ({ ...prev, balance: prev.balance + totalAmount }));
-    }
-
-    setIsLoading(false);
-  }, [vaults]);
+        // Refresh data
+        await refreshData();
+      } catch (error) {
+        console.error('Failed to emergency withdraw:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [wallet.address]
+  );
 
   const getVaultById = useCallback(
     (id: string) => vaults.find((v) => v.id === id),
     [vaults]
   );
 
-  const refreshData = useCallback(() => {
-    // In production, this would fetch fresh data from the blockchain
-  }, []);
+  const refreshData = useCallback(async () => {
+    try {
+      // Fetch current block height
+      const currentBlock = await contractService.getCurrentTime();
+      
+      // Fetch contract stats
+      const [totalDeposits, vaultCounter, contractBalance] = await Promise.all([
+        contractService.getTotalDeposits(),
+        contractService.getVaultCounter(),
+        contractService.getContractBalance(),
+      ]);
+
+      setStats({
+        totalDeposits: microStxToStx(totalDeposits),
+        totalVaults: vaultCounter,
+        contractBalance: microStxToStx(contractBalance),
+        currentBlockHeight: currentBlock,
+        interestRate: ANNUAL_INTEREST_RATE_PERCENT,
+        totalInterestPaid: 0, // Will be calculated below
+      });
+
+      // Try to fetch all contract transactions for global activity feed
+      // Falls back to user transactions if contract not deployed yet
+      let allActivities: Activity[] = [];
+      
+      const contractTransactions = await apiService.fetchContractTransactions(
+        CONTRACT_ADDRESS,
+        CONTRACT_NAME,
+        100
+      );
+      
+      if (contractTransactions.length > 0) {
+        // Parse all contract activities
+        allActivities = parseTransactionsToActivities(
+          contractTransactions,
+          wallet.address || ''
+        );
+      } else if (wallet.address) {
+        // Fallback to user transactions if contract transactions not available
+        const userTransactions = await apiService.fetchAccountTransactions(wallet.address, 50);
+        allActivities = parseTransactionsToActivities(userTransactions, wallet.address);
+      }
+      
+      setActivities(allActivities);
+
+      // Fetch user vaults if wallet is connected
+      if (wallet.address) {
+        const userVaultIds = await contractService.getUserVaults(wallet.address);
+        
+        // Fetch each vault's status
+        const vaultDataPromises = userVaultIds.map(async (vaultId) => {
+          try {
+            const vaultStatus = await contractService.getVaultStatus(vaultId);
+            return convertVaultData(vaultId, vaultStatus, currentBlock);
+          } catch (error) {
+            console.error(`Error fetching vault ${vaultId}:`, error);
+            return null;
+          }
+        });
+
+        const vaultDataArray = await Promise.all(vaultDataPromises);
+        const validVaults = vaultDataArray.filter((v): v is Vault => v !== null);
+        setVaults(validVaults);
+
+        // Update wallet balance
+        const balance = await apiService.fetchAccountBalance(wallet.address);
+        setWallet((prev) => ({ ...prev, balance: microStxToStx(balance) }));
+        
+        // Calculate total interest paid from withdrawn vaults
+        const totalInterest = validVaults
+          .filter((v) => v.status === 'withdrawn')
+          .reduce((sum, v) => sum + v.interestEarned, 0);
+        
+        setStats((prev) => ({ ...prev, totalInterestPaid: totalInterest }));
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+  }, [wallet.address]);
 
   return (
     <VaultContext.Provider
