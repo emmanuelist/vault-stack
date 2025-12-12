@@ -132,6 +132,51 @@ export function parseClarityValue(clarityValue: ClarityValue): unknown {
 }
 
 /**
+ * Extract a primitive value from a potentially nested Clarity value structure
+ * cvToValue sometimes doesn't fully convert nested values, leaving objects like {type, value}
+ * This function recursively extracts the actual primitive value
+ * @param value Any value that might be a Clarity value object or already a primitive
+ * @returns The extracted primitive value (string, number, bigint, boolean, etc.)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractClarityValue(value: any): any {
+  // If it's null or undefined, return as-is
+  if (value == null) {
+    return value;
+  }
+  
+  // If it's a primitive, return as-is
+  if (typeof value !== 'object') {
+    return value;
+  }
+  
+  // If it has a .value property (Clarity value structure), extract it
+  if ('value' in value && value.value !== undefined) {
+    return extractClarityValue(value.value);
+  }
+  
+  // If it's an array, recursively extract each element
+  if (Array.isArray(value)) {
+    return value.map(extractClarityValue);
+  }
+  
+  // If it's a plain object, recursively extract each property
+  if (Object.prototype.toString.call(value) === '[object Object]') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = {};
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        result[key] = extractClarityValue(value[key]);
+      }
+    }
+    return result;
+  }
+  
+  // Return as-is for any other case
+  return value;
+}
+
+/**
  * Format transaction ID for display
  * @param txId Transaction ID
  * @returns Shortened transaction ID
