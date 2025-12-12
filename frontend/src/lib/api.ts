@@ -141,3 +141,39 @@ export async function waitForTransactionConfirmation(
   
   return false;
 }
+
+/**
+ * Fetch contract transactions
+ * @param contractAddress Contract address
+ * @param contractName Contract name
+ * @param limit Number of transactions to fetch
+ * @returns Array of transactions
+ */
+export async function fetchContractTransactions(
+  contractAddress: string,
+  contractName: string,
+  limit: number = 50
+): Promise<Transaction[]> {
+  try {
+    const contractId = `${contractAddress}.${contractName}`;
+    const response = await fetch(
+      `${API_URL}/extended/v1/contract/${contractId}/transactions?limit=${limit}`
+    );
+    
+    // Contract might not be deployed yet (404), return empty array gracefully
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log('Contract not found on network - contract may not be deployed yet');
+        return [];
+      }
+      console.warn(`Failed to fetch contract transactions: ${response.statusText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.warn('Error fetching contract transactions:', error);
+    return [];
+  }
+}
