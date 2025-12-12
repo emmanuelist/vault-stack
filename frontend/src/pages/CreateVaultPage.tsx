@@ -54,6 +54,11 @@ const CreateVaultPage = () => {
     return parseInt(customDays) || 0;
   }, [selectedPreset, customDays]);
 
+  // Convert days to seconds for contract call
+  const durationSeconds = useMemo(() => {
+    return durationDays * 86400; // 86400 seconds per day
+  }, [durationDays]);
+
   const estimatedInterest = useMemo(() => {
     const principal = parseFloat(amount) || 0;
     const apr = stats.interestRate / 100;
@@ -92,7 +97,8 @@ const CreateVaultPage = () => {
 
     setIsCreating(true);
     try {
-      const vault = await createVault(parseFloat(amount), durationBlocks);
+      // Use durationSeconds instead of durationBlocks
+      const vault = await createVault(parseFloat(amount), durationSeconds);
       setCreatedVaultId(vault.id);
       setShowReview(false);
       setShowSuccess(true);
