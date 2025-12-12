@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownLeft, Zap, Unlock } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Zap, Unlock, ExternalLink } from 'lucide-react';
 import { Activity } from '@/contexts/VaultContext';
+import { EXPLORER_URL } from '@/lib/stacks-config';
 import { cn } from '@/lib/utils';
 
 interface ActivityItemProps {
@@ -80,6 +81,15 @@ export const ActivityItem = ({ activity, index = 0 }: ActivityItemProps) => {
               {activity.vaultId}
             </span>
           )}
+          <a
+            href={`${EXPLORER_URL}/txid/${activity.txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            title="View on explorer"
+          >
+            <ExternalLink className="w-3 h-3 text-muted-foreground hover:text-primary" />
+          </a>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-mono">{truncateAddress(activity.address)}</span>
