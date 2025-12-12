@@ -19,6 +19,7 @@ import {
   createDurationCV, 
   createVaultIdCV,
   parseClarityValue,
+  extractClarityValue,
   microStxToStx,
   blocksToSeconds,
 } from './stacks-utils';
@@ -222,7 +223,8 @@ export async function getVault(vaultId: number): Promise<VaultData | null> {
       return null;
     }
 
-    const vaultData = value.value;
+    // Extract the vault data and convert nested Clarity values
+    const vaultData = extractClarityValue(value.value);
     
     return {
       owner: vaultData.owner,
@@ -261,7 +263,8 @@ export async function getVaultStatus(vaultId: number): Promise<VaultStatus> {
       throw new Error('Vault not found');
     }
 
-    const statusData = value.value;
+    // Extract the status data and convert nested Clarity values
+    const statusData = extractClarityValue(value.value);
     
     return {
       vaultId: Number(statusData['vault-id']),
@@ -297,14 +300,50 @@ export async function getUserVaults(userAddress: string): Promise<number[]> {
       senderAddress: userAddress,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = parseClarityValue(result) as any;
+    // Parse the Clarity tuple { vault-ids: (list uint) }
+    // cvToValue converts the tuple but leaves nested Clarity values
+    const value = cvToValue(result);
     
-    if (!value || !value['vault-ids']) {
+    // The contract returns a tuple { vault-ids: (list uint) }
+    if (!value || typeof value !== 'object') {
       return [];
     }
-
-    return value['vault-ids'].map((id: unknown) => Number(id));
+    
+    // Access vault-ids property
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vaultIdsCV = (value as any)['vault-ids'];
+    
+    if (!vaultIdsCV) {
+      return [];
+    }
+    
+    // The list is still a Clarity value object with {type, value}
+    // Extract the actual array from the .value property
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let vaultIds: any[];
+    
+    if (Array.isArray(vaultIdsCV)) {
+      // Already an array
+      vaultIds = vaultIdsCV;
+    } else if (vaultIdsCV.value && Array.isArray(vaultIdsCV.value)) {
+      // ClarityValue object with .value array
+      vaultIds = vaultIdsCV.value;
+    } else {
+      console.warn('Unexpected vault-ids structure:', vaultIdsCV);
+      return [];
+    }
+    
+    // Convert each ID to number (they might be bigint or Clarity values)
+    return vaultIds.map((id: unknown) => {
+      if (typeof id === 'bigint') {
+        return Number(id);
+      }
+      if (typeof id === 'number') {
+        return id;
+      }
+      // If it's still a Clarity value, convert it
+      return Number(cvToValue(id as ClarityValue));
+    });
   } catch (error) {
     console.error('Error fetching user vaults:', error);
     return [];
@@ -328,7 +367,8 @@ export async function getTotalDeposits(): Promise<bigint> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = parseClarityValue(result) as any;
-    return BigInt(value.value);
+    const extracted = extractClarityValue(value.value);
+    return BigInt(extracted);
   } catch (error) {
     console.error('Error fetching total deposits:', error);
     return 0n;
@@ -352,7 +392,8 @@ export async function getVaultCounter(): Promise<number> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = parseClarityValue(result) as any;
-    return Number(value.value);
+    const extracted = extractClarityValue(value.value);
+    return Number(extracted);
   } catch (error) {
     console.error('Error fetching vault counter:', error);
     return 0;
@@ -376,7 +417,8 @@ export async function getContractBalance(): Promise<bigint> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = parseClarityValue(result) as any;
-    return BigInt(value.value);
+    const extracted = extractClarityValue(value.value);
+    return BigInt(extracted);
   } catch (error) {
     console.error('Error fetching contract balance:', error);
     return 0n;
@@ -400,7 +442,8 @@ export async function getCurrentTime(): Promise<number> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = parseClarityValue(result) as any;
-    return Number(value.value);
+    const extracted = extractClarityValue(value.value);
+    return Number(extracted);
   } catch (error) {
     console.error('Error fetching current time:', error);
     return 0;
