@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ChevronDown, LogOut, ExternalLink, Menu, X } from 'lucide-react';
+import { Wallet, ChevronDown, LogOut, ExternalLink, Menu, X, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVault } from '@/contexts/VaultContext';
 import { cn } from '@/lib/utils';
@@ -25,9 +25,18 @@ export const Header = () => {
   const location = useLocation();
   const { wallet, connectWallet, disconnectWallet, isLoading } = useVault();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const truncateAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const copyAddress = async () => {
+    if (wallet.address) {
+      await navigator.clipboard.writeText(wallet.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -120,34 +129,81 @@ export const Header = () => {
                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <div className="px-2.5 py-1.5">
-                    <p className="text-sm font-medium">Connected Wallet</p>
-                    <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                      {wallet.address}
-                    </p>
+                <DropdownMenuContent align="end" className="w-72 p-0">
+                  {/* Wallet Header */}
+                  <div className="px-4 py-3 border-b border-border bg-secondary/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                          <Wallet className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Connected Wallet</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                            <span className="text-xs font-medium text-success capitalize">{wallet.network}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Balance Display */}
+                    <div className="bg-card rounded-lg p-2.5 mb-2">
+                      <p className="text-xs text-muted-foreground mb-0.5">Balance</p>
+                      <p className="font-display text-xl font-bold text-foreground">
+                        {wallet.balance.toLocaleString()} <span className="text-sm text-muted-foreground">STX</span>
+                      </p>
+                    </div>
+
+                    {/* Address with Copy */}
+                    <div 
+                      onClick={copyAddress}
+                      className="group bg-card hover:bg-secondary/50 rounded-lg p-2.5 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-0.5">Address</p>
+                          <p className="font-mono text-xs text-foreground truncate">
+                            {wallet.address}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {copied ? (
+                            <div className="flex items-center gap-1 text-success">
+                              <Check className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">Copied!</span>
+                            </div>
+                          ) : (
+                            <Copy className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    className="gap-2"
-                    onClick={() => {
-                      const explorerUrl = wallet.network === 'mainnet' 
-                        ? `https://explorer.hiro.so/address/${wallet.address}`
-                        : `https://explorer.hiro.so/address/${wallet.address}?chain=testnet`;
-                      window.open(explorerUrl, '_blank');
-                    }}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    View on Explorer
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="gap-2 text-destructive focus:text-destructive"
-                    onClick={disconnectWallet}
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Disconnect
-                  </DropdownMenuItem>
+
+                  {/* Actions */}
+                  <div className="p-1.5">
+                    <DropdownMenuItem 
+                      className="gap-2 cursor-pointer rounded-md py-2.5"
+                      onClick={() => {
+                        const explorerUrl = wallet.network === 'mainnet' 
+                          ? `https://explorer.hiro.so/address/${wallet.address}`
+                          : `https://explorer.hiro.so/address/${wallet.address}?chain=testnet`;
+                        window.open(explorerUrl, '_blank');
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>View on Explorer</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer rounded-md py-2.5 text-destructive focus:text-destructive focus:bg-destructive/10"
+                      onClick={disconnectWallet}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Disconnect Wallet</span>
+                    </DropdownMenuItem>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
