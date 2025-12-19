@@ -83,7 +83,7 @@ const HomePage = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative min-h-[80vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[90vh] sm:min-h-[85vh] md:min-h-[80vh] flex items-center overflow-hidden pt-16 sm:pt-0">
         {/* Animated Particles Background */}
         <ParticlesBackground particleCount={60} />
         
@@ -106,16 +106,16 @@ const HomePage = () => {
 
         <motion.div 
           style={{ y: heroY, opacity: heroOpacity }}
-          className="container mx-auto px-3 lg:px-5 relative z-10"
+          className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10"
         >
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="max-w-4xl mx-auto text-center px-2 sm:px-4">
             {/* Badge with Parallax */}
             <motion.div
               style={{ y: badgeY }}
               initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.5, type: 'spring' }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4 sm:mb-6 backdrop-blur-sm touch-manipulation"
             >
               <motion.span 
                 animate={{ scale: [1, 1.2, 1] }}
@@ -131,7 +131,7 @@ const HomePage = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-5 leading-tight"
+                className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-4 sm:mb-5 leading-tight px-2"
               >
                 <motion.span
                   initial={{ opacity: 0, x: -20 }}
@@ -157,7 +157,7 @@ const HomePage = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8"
+                className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 px-2 leading-relaxed"
               >
                 Time-locked vaults powered by smart contracts on the Stacks blockchain. 
                 Deposit your STX, set a lock duration, and earn guaranteed interest.
@@ -170,7 +170,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-3"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full sm:w-auto px-4 sm:px-0"
             >
               {wallet.isConnected ? (
                 <Link to="/create">
@@ -178,7 +178,7 @@ const HomePage = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <Button size="default" className="gap-2 px-6 pulse-glow">
+                    <Button size="lg" className="gap-2 px-8 pulse-glow w-full sm:w-auto min-h-[48px] touch-manipulation text-base">
                       Create Vault
                       <ArrowRight className="w-4 h-4" />
                     </Button>
@@ -193,7 +193,7 @@ const HomePage = () => {
                     size="default"
                     onClick={connectWallet}
                     disabled={isLoading}
-                    className="gap-2 px-6 pulse-glow"
+                    className="gap-2 px-8 pulse-glow w-full sm:w-auto min-h-[48px] touch-manipulation text-base"
                   >
                     <Wallet className="w-4 h-4" />
                     Connect Wallet
@@ -205,7 +205,7 @@ const HomePage = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Button variant="outline" size="default" className="gap-2 px-6 backdrop-blur-sm bg-background/50">
+                  <Button variant="outline" size="lg" className="gap-2 px-8 backdrop-blur-sm bg-background/50 w-full sm:w-auto min-h-[48px] touch-manipulation text-base">
                     View All Vaults
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -219,7 +219,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 max-w-3xl mx-auto"
+              className="mt-8 sm:mt-10 md:mt-12 grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 max-w-3xl mx-auto px-2"
             >
               {[
                 { value: stats.totalDeposits, label: 'Total Deposits (STX)', color: 'text-primary' },
@@ -233,15 +233,15 @@ const HomePage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.7 + index * 0.1 }}
                   whileHover={{ scale: 1.05, y: -5 }}
-                  className="text-center p-3 rounded-xl bg-background/30 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-colors"
+                  className="text-center p-3 sm:p-4 rounded-lg sm:rounded-xl bg-background/30 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-colors touch-manipulation"
                 >
                   <AnimatedCounter
                     value={stat.value}
                     suffix={stat.suffix}
                     decimals={stat.decimals}
-                    className={`text-xl sm:text-2xl font-display font-bold ${stat.color}`}
+                    className={`text-lg sm:text-xl md:text-2xl font-display font-bold ${stat.color}`}
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 leading-tight">{stat.label}</p>
                 </motion.div>
               ))}
             </motion.div>
@@ -253,7 +253,7 @@ const HomePage = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"
+          className="hidden md:flex absolute bottom-6 left-1/2 -translate-x-1/2 z-20"
         >
           <motion.div
             animate={{ y: [0, 10, 0] }}
@@ -274,24 +274,25 @@ const HomePage = () => {
 
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-12 lg:py-20 relative">
-        <div className="container mx-auto px-3 lg:px-5">
+      <section id="how-it-works" className="py-8 sm:py-12 md:py-16 lg:py-20 relative">
+        <div className="absolute inset-0 bg-grid opacity-20" />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-10"
+            className="text-center mb-6 sm:mb-8 md:mb-10 px-4"
           >
-            <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3">
+            <h2 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-2 sm:mb-3">
               How It Works
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
               Create a time-locked vault in four simple steps
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {howItWorksSteps.map((step, index) => (
               <motion.div
                 key={step.title}
@@ -308,22 +309,22 @@ const HomePage = () => {
                   <div className="hidden lg:block absolute top-10 left-full w-full h-px bg-gradient-to-r from-primary/50 to-transparent z-0" />
                 )}
 
-                <div className="relative bg-card border border-border rounded-xl p-5 h-full transition-all duration-300 hover:border-primary/50 hover:shadow-glow">
+                <div className="relative bg-card border border-border rounded-lg sm:rounded-xl p-4 sm:p-5 h-full transition-all duration-300 hover:border-primary/50 hover:shadow-glow touch-manipulation">
                   {/* Step number */}
-                  <div className="absolute -top-2.5 -left-2.5 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
+                  <div className="absolute -top-2.5 -left-2.5 w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
                     {index + 1}
                   </div>
 
                   {/* Icon */}
                   <motion.div
                     animate={{ scale: hoveredStep === index ? 1.1 : 1 }}
-                    className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center mb-3"
                   >
-                    <step.icon className="w-6 h-6 text-primary" />
+                    <step.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                   </motion.div>
 
-                  <h3 className="font-semibold text-foreground mb-1.5">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                  <h3 className="font-semibold text-sm sm:text-base text-foreground mb-1.5">{step.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{step.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -332,19 +333,19 @@ const HomePage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 lg:py-20 bg-background-elevated relative">
+      <section className="py-8 sm:py-12 md:py-16 lg:py-20 bg-background-elevated relative">
         <div className="absolute inset-0 bg-grid opacity-20" />
-        <div className="container mx-auto px-3 lg:px-5 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-8"
+            className="text-center mb-6 sm:mb-8 px-4"
           >
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3">
+            <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2 sm:mb-3">
               Platform Statistics
             </h2>
-            <p className="text-sm text-muted-foreground">Real-time metrics from the Vault Stack contract</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Real-time metrics from the Vault Stack contract</p>
           </motion.div>
 
           <StatsGrid>
@@ -381,20 +382,20 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-12 lg:py-20">
-        <div className="container mx-auto px-3 lg:px-5">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <section className="py-8 sm:py-12 md:py-16 lg:py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-5">
+              <h2 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 sm:mb-5">
                 Built for Security.{' '}
                 <span className="text-gradient-accent">Designed for Trust.</span>
               </h2>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-sm sm:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed">
                 Vault Stack leverages the security of the Stacks blockchain and Bitcoin's finality 
                 to provide trustless, time-locked vaults for your STX tokens.
               </p>
@@ -413,8 +414,8 @@ const HomePage = () => {
                       <feature.icon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-foreground mb-0.5">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                      <h3 className="font-semibold text-sm sm:text-base text-foreground mb-0.5">{feature.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -426,37 +427,37 @@ const HomePage = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative"
+              className="relative mt-8 lg:mt-0"
             >
               {/* Mock vault card visualization */}
-              <div className="relative bg-card border border-border rounded-xl p-5 shadow-elevated">
+              <div className="relative bg-card border border-border rounded-xl p-4 sm:p-5 shadow-elevated">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent rounded-xl" />
                 <div className="relative">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-                        <Lock className="w-4 h-4 text-primary-foreground" />
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+                        <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-foreground" />
                       </div>
                       <div>
-                        <p className="font-semibold text-sm text-foreground">Your Vault</p>
-                        <p className="text-xs text-muted-foreground font-mono">vault-001</p>
+                        <p className="font-semibold text-xs sm:text-sm text-foreground">Your Vault</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-mono">vault-001</p>
                       </div>
                     </div>
-                    <span className="badge-locked px-2.5 py-0.5 rounded-full text-xs">Locked</span>
+                    <span className="badge-locked px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs">Locked</span>
                   </div>
 
-                  <div className="mb-5">
-                    <p className="text-xs text-muted-foreground mb-0.5">Deposited</p>
-                    <p className="font-display text-3xl font-bold text-foreground">5,000 STX</p>
-                    <p className="text-sm text-success mt-0.5">+142.50 STX earned</p>
+                  <div className="mb-4 sm:mb-5">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Deposited</p>
+                    <p className="font-display text-2xl sm:text-3xl font-bold text-foreground">5,000 STX</p>
+                    <p className="text-xs sm:text-sm text-success mt-0.5">+142.50 STX earned</p>
                   </div>
 
-                  <div className="mb-5">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                  <div className="mb-4 sm:mb-5">
+                    <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground mb-1.5">
                       <span>Progress</span>
                       <span>67%</span>
                     </div>
-                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-1.5 sm:h-2 bg-secondary rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         whileInView={{ width: '67%' }}
@@ -467,7 +468,7 @@ const HomePage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Unlock in</span>
                     <span className="font-mono text-primary font-semibold">30d 12h 45m</span>
                   </div>
@@ -491,22 +492,22 @@ const HomePage = () => {
       </section>
 
       {/* Recent Activity Section */}
-      <section className="py-12 lg:py-20 bg-background-elevated relative">
+      <section className="py-8 sm:py-12 md:py-16 lg:py-20 bg-background-elevated relative">
         <div className="absolute inset-0 bg-grid opacity-20" />
-        <div className="container mx-auto px-3 lg:px-5 relative">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 sm:mb-8 px-4 sm:px-0 gap-3">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1.5">
+              <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1 sm:mb-1.5">
                 Recent Activity
               </h2>
-              <p className="text-sm text-muted-foreground">Latest transactions on the platform</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Latest transactions on the platform</p>
             </motion.div>
             <Link to="/activity">
-              <Button variant="outline" size="sm" className="gap-1.5 mt-3 md:mt-0">
+              <Button variant="outline" size="sm" className="gap-1.5 min-h-[40px] touch-manipulation w-full md:w-auto">
                 View All Activity
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
@@ -518,9 +519,9 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 lg:py-20 relative overflow-hidden">
+      <section className="py-8 sm:py-12 md:py-16 lg:py-20 relative overflow-hidden">
         <div className="absolute inset-0 spotlight-accent" />
-        <div className="container mx-auto px-3 lg:px-5 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -528,27 +529,27 @@ const HomePage = () => {
             transition={{ duration: 0.6 }}
             className="max-w-3xl mx-auto text-center"
           >
-            <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-5">
+            <h2 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 sm:mb-5">
               Ready to Start Earning?
             </h2>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-relaxed">
               Create your first vault today and start earning interest on your STX tokens. 
               No minimum deposit required.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 px-4 sm:px-0">
               {wallet.isConnected ? (
-                <Link to="/create">
-                  <Button size="default" className="gap-2 px-8 pulse-glow">
+                <Link to="/create" className="w-full sm:w-auto">
+                  <Button size="lg" className="gap-2 px-8 pulse-glow w-full min-h-[48px] touch-manipulation text-base">
                     Create Your Vault
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
               ) : (
                 <Button
-                  size="default"
+                  size="lg"
                   onClick={connectWallet}
                   disabled={isLoading}
-                  className="gap-2 px-8 pulse-glow"
+                  className="gap-2 px-8 pulse-glow w-full sm:w-auto min-h-[48px] touch-manipulation text-base"
                 >
                   <Wallet className="w-4 h-4" />
                   Get Started
