@@ -70,7 +70,8 @@ const CreateVaultPage = () => {
   const unlockBlock = stats.currentBlockHeight + durationBlocks;
 
   const isValidAmount = parseFloat(amount) > 0 && parseFloat(amount) <= wallet.balance;
-  const isValidDuration = durationBlocks > 0;
+  const isValidDuration = durationBlocks >= 1008; // Minimum 7 days (1008 blocks)
+  const minDurationDays = 7;
   const canCreateVault = wallet.isConnected && isValidAmount && isValidDuration;
 
   const handleMaxClick = () => {
@@ -102,11 +103,14 @@ const CreateVaultPage = () => {
         description: `Your vault ${vault.id} has been created.`,
       });
     } catch (error) {
+      // Show the actual error message from validation or contract
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred. Please try again.';
       toast({
         title: 'Error Creating Vault',
-        description: 'Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
+      console.error('Vault creation error:', error);
     } finally {
       setIsCreating(false);
     }
@@ -337,6 +341,25 @@ const CreateVaultPage = () => {
                     <span className="font-mono text-foreground">{unlockBlock.toLocaleString()}</span>)
                   </span>
                 </div>
+              )}
+
+              {/* Validation Warning for Duration */}
+              {durationDays > 0 && durationDays < minDurationDays && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-destructive">Minimum Duration Required</p>
+                      <p className="text-xs text-destructive/80 mt-0.5">
+                        Vaults must be locked for at least {minDurationDays} days. You selected {durationDays} day{durationDays !== 1 ? 's' : ''}.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
               )}
             </div>
 
