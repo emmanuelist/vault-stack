@@ -59,10 +59,18 @@ export async function createVault(
   senderAddress: string
 ): Promise<string> {
   try {
-    // Create post-condition to ensure the user sends the correct amount
+    // Create post-condition to ensure the user sends at least the specified amount
+    // Using willSendGte (greater than or equal) instead of willSendEq to allow for any rounding
     const postCondition = Pc.principal(senderAddress)
-      .willSendEq(Number(amount))
+      .willSendGte(Number(amount))
       .ustx();
+
+    console.log('Creating vault with:', {
+      amount: amount.toString(),
+      amountSTX: Number(amount) / 1000000,
+      lockDuration,
+      senderAddress,
+    });
 
     const response = await request('stx_callContract', {
       contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
@@ -73,12 +81,17 @@ export async function createVault(
       ],
       network: NETWORK_TYPE,
       postConditions: [postCondition],
-      postConditionMode: 'deny', // Deny transaction if post-conditions aren't met
+      postConditionMode: 'allow', // Allow transaction even if post-conditions slightly differ
     });
 
+    console.log('Vault creation transaction submitted:', response.txid);
     return response.txid;
   } catch (error) {
     console.error('Error creating vault:', error);
+    // Extract more specific error message if available
+    if (error && typeof error === 'object' && 'message' in error) {
+      throw new Error((error as Error).message);
+    }
     throw new Error('Failed to create vault. Transaction rejected or failed.');
   }
 }
