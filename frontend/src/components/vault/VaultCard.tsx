@@ -42,7 +42,7 @@ export const VaultCard = ({ vault, currentBlock, index = 0 }: VaultCardProps) =>
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
 
-      <div className="relative p-4 sm:p-5">
+      <div className="relative card-padding-sm">
         {/* Header Row */}
         <div className="flex items-start justify-between mb-3">
           <div>
@@ -68,7 +68,7 @@ export const VaultCard = ({ vault, currentBlock, index = 0 }: VaultCardProps) =>
         {/* Value Display */}
         <div className="mb-3">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
+            <span className="font-display text-xl sm:text-2xl md:text-3xl font-semibold text-foreground">
               {vault.principal.toLocaleString()}
             </span>
             <span className="text-base text-muted-foreground">STX</span>
@@ -139,13 +139,13 @@ export const VaultCard = ({ vault, currentBlock, index = 0 }: VaultCardProps) =>
         )}
 
         {/* Block Info */}
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <span>Deposit Block:</span>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10px] sm:text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 justify-start sm:justify-start">
+            <span>Deposit:</span>
             <span className="font-mono text-foreground">{vault.depositBlock.toLocaleString()}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span>Unlock Block:</span>
+          <div className="flex items-center gap-1 justify-start sm:justify-end">
+            <span>Unlock:</span>
             <span className="font-mono text-foreground">{vault.unlockBlock.toLocaleString()}</span>
           </div>
         </div>
