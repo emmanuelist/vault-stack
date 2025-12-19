@@ -1,12 +1,12 @@
 import { STACKS_MAINNET, STACKS_TESTNET } from '@stacks/network';
 
 // Contract details
-export const CONTRACT_ADDRESS = 'SPHB047A30W99178TR7KE0784C2GV22070JTKX8';
+export const CONTRACT_ADDRESS = 'STHB047A30W99178TR7KE0784C2GV2206H98PPY';
 export const CONTRACT_NAME = 'vault-stack';
 export const FULL_CONTRACT_ID = `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`;
 
 // Network configuration
-export const NETWORK_TYPE: 'mainnet' | 'testnet' = 'mainnet'; // Change to 'testnet' for testing
+export const NETWORK_TYPE: 'mainnet' | 'testnet' = 'testnet'; // Testing on testnet before mainnet
 
 // Network config object for read-only calls - using proper StacksNetwork instance
 export const NETWORK = NETWORK_TYPE === 'mainnet' 
@@ -30,6 +30,9 @@ export const API_URL = NETWORK.client.baseUrl;
 export const EXPLORER_URL = NETWORK_TYPE === 'mainnet'
   ? 'https://explorer.hiro.so'
   : 'https://explorer.hiro.so/?chain=testnet';
+
+// Testnet faucet for getting test STX
+export const TESTNET_FAUCET = 'https://explorer.hiro.so/sandbox/faucet?chain=testnet';
 
 // Local storage keys
 export const WALLET_ADDRESS_KEY = 'vault-stack-wallet-address';
