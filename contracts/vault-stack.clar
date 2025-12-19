@@ -15,8 +15,9 @@
 ;; Annual interest rate (in basis points: 500 = 5%)
 (define-constant annual-interest-rate u500)
 
-;; Minimum lock duration (7 days in seconds)
-(define-constant min-lock-duration u604800)
+;; Minimum lock duration (7 days in blocks: ~1008 blocks at 10 min/block)
+;; Note: Contract uses stacks-block-height, so durations are in blocks
+(define-constant min-lock-duration u1008)
 
 ;; Data Variables
 (define-data-var total-deposits uint u0)
@@ -61,15 +62,16 @@
   (ok (var-get vault-counter))
 )
 
-(define-read-only (calculate-interest (amount uint) (duration uint))
+(define-read-only (calculate-interest (amount uint) (duration-blocks uint))
   (let
     (
-      ;; Convert duration from seconds to years (simplified: 365 days)
-      (seconds-per-year u31536000)
-      ;; Calculate interest: (amount * rate * duration) / (10000 * seconds_per_year)
+      ;; Convert duration from blocks to years
+      ;; ~144 blocks/day * 365 days = 52,560 blocks/year
+      (blocks-per-year u52560)
+      ;; Calculate interest: (amount * rate * duration_blocks) / (10000 * blocks_per_year)
       ;; We use 10000 as denominator because rate is in basis points
-      (interest (/ (* (* amount annual-interest-rate) duration) 
-                   (* u10000 seconds-per-year)))
+      (interest (/ (* (* amount annual-interest-rate) duration-blocks) 
+                   (* u10000 blocks-per-year)))
     )
     (ok interest)
   )
